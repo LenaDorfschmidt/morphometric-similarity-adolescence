@@ -206,7 +206,6 @@ df$measure = factor(df$measure, levels=sm.long)
 newdat = expand.grid(age=range(MRI_table$age),
                      sex= unique(MRI_table$sex),
                      site=as.factor(3))
-collect.glob.plots = list()
 for (i in 1:nmorph) {
   m = unique(df$measure)[i]
   df.m = subset(df, measure ==m)
@@ -225,7 +224,7 @@ for (i in 1:nmorph) {
           plot.title = element_text(hjust = 0.5), legend.position = 'bottom')+
     ggtitle(m)+ 
     scale_color_manual(values=c(colors.morph[7],colors.morph[1]))
-  ggsave(plot = p, filename = paste0(outpath.main,gsub(' ','_',m),'.png'),width = 3,height=3, bg='white')
+  ggsave(plot = p, filename = paste0(outpath.main,'glob.morph.development.',sm[i],'.png'),width = 3,height=3, bg='white')
 }
 
 global.effect.sizes=lapply(sm.long, function(x) summary(lme(value~age+sex+site, random= ~1|id,data = subset(globeff,measure==x)))$tTable[2,4:5])
@@ -633,9 +632,9 @@ dev.off()
 
 
 # Divergence in morphometric similarity development
-df=data.frame(cor=apply(t(morph.dev.output$str.morph.l.sl.t[choose.SM[[w]],]), 2, function(x) cor.test(x,str.l.sl.t)$estimate),
-              p=apply(t(morph.dev.output$str.morph.l.sl.t[choose.SM[[w]],]), 2, function(x) cor.test(x,str.l.sl.t)$p.value),
-              p.spin=apply(t(morph.dev.output$str.morph.l.sl.t[choose.SM[[w]],]), 2, 
+df=data.frame(cor=apply(t(str.morph.l.sl.t), 2, function(x) cor.test(x,str.l.sl.t)$estimate),
+              p=apply(t(str.morph.l.sl.t), 2, function(x) cor.test(x,str.l.sl.t)$p.value),
+              p.spin=apply(t(str.morph.l.sl.t), 2, 
                function(x) perm.sphere.p(x,str.l.sl.t,perm.id,corr.type = 'spearman')),
   sm=sm,group=sm.group)
 df$p.fdr = p.adjust(df$p, method='fdr')
@@ -1234,135 +1233,9 @@ subset(df.neurosynth, t>0) %>%
   guides(fill = guide_colorbar(title.position = "top", title.hjust = 0.5))
 
 
-
-
-
-
-
-
-
-
-
-
-#### Do I need this
-
-tmp=MRI_table[,c('id','age','sex','session', 'site')]
-tmp$rowindex=1:nsub
-
-tmp.wide=reshape(subset(tmp, session!='ses-6Month'), idvar = "id", timevar = "session", direction = "wide")
-
-all.msn=array(NA, dim=360)
-all.msn=array(NA, dim=360)
-all.msn[(1:360)[-del.roi]] = str.l.sl.t
-
-data.frame(mt.bl=str.morph.l.bl[3,],mt.fu = str.morph.l.fu25[3, ],coupl.bl=bl.fc.str.r2, label=nm.ggseg) %>%   
-  ggseg(atlas=glasser,mapping=aes(fill=mt.fu), position = 'stacked')+
-  scale_fill_gradientn(colors=brewer.pal(9,'Blues'), limits=c(5000,22000), oob=squish)
-  
-data.frame(mt.bl=str.morph.l.bl[3,],mt.fu = str.morph.l.fu25[3, ],coupl.bl=bl.fc.str.r2, label=nm.ggseg) %>%   
-  ggseg(atlas=glasser,mapping=aes(fill=mt.bl), position = 'stacked')+
-  scale_fill_gradientn(colors=brewer.pal(9,'Blues'), limits=c(5000,22000), oob=squish)
-
-data.frame(label=rep(nm.ggseg,2),
-           value=c(ifelse(str.l.sl.t<0,str.l.sl.t,NA),ifelse(str.l.sl.t<0,NA,str.l.sl.t)), 
-           group = factor(rep(c('pos','neg'),each = nroi)))  %>%
-  group_by(group) %>%
-  ggseg(atlas=glasser,
-        mapping=aes(fill=value))+
-  scale_fill_gradientn(colors=colors.msn.age,limits=c(-limvar,limvar), oob=squish)+
-  facet_wrap(~group, ncol=1)+
-  theme_minimal(base_family = "Gill Sans")+
-  theme(legend.position = 'bottom')+
-  labs(fill='Age (t-value)')+
-  guides(fill = guide_colourbar(title.position="top", title.hjust = 0.5))
-
-
-# Looks funny, but all the ggarranges make sure the legend is in the same position
-ggsave(
-  ggarrange(ggarrange(struc.fc.age, common.legend = T,legend = 'bottom'),
-            ggarrange(bl.coupling, common.legend = T, legend = 'bottom'),
-            ggarrange(coupl.ve.bl, legend = 'none'),
-            ggarrange(sl.coupling,sl.thresh.coupling, nrow=1, common.legend = T, legend = 'bottom'),
-            ggarrange(coupl.ve.sl, nrow=1, legend = 'none'),
-            vjust=0,hjust = 0,nrow=1,widths=c(1,1.2,1,2.4,1),heights = c(0.7,1,1,1,0.7),
-            labels = c('A | Global coupling',
-                       'B | Coupling at baseline',
-                       '',
-                       'C | Coupling rate of change',
-                       ''),
-            font.label = list(size = 12, family="Gill Sans"))+
-    theme(plot.margin = margin(0.5,0,0,0, "cm")),
-  filename = '~/Downloads/coupling.png',width=13, height=3, bg='white')
-
-
-ggsave(ggarrange(ggarrange(ggarrange(struc.fc.age, common.legend = T,legend = 'bottom'),
-                           ggarrange(bl.coupling, common.legend = T, legend = 'bottom'),
-                           ggarrange(coupl.ve.bl, legend = 'none'),ncol=3,nrow=1)+
-                   theme(plot.margin = margin(0.5,0,0,0, "cm")),
-                 ggarrange(ggarrange(sl.coupling,sl.thresh.coupling, nrow=1, common.legend = T, legend = 'bottom'),
-                           ggarrange(coupl.ve.sl, nrow=1, legend = 'none'), widths = c(2,1))+
-                   theme(plot.margin = margin(0.5,0,0,0, "cm")),
-                 vjust=0,hjust = 0,nrow=2, ncol=1,
-                 font.label = list(size = 12, family="Gill Sans")),
-       filename = '~/Downloads/coupling.png',width=7, height=6, bg='white')
-
-
-
-
-sink('~/Downloads/test.txt')
+sink(paste0(outpath.main,'all.stats.txt'))
 print(printout.stats)
 sink()
-
-
-# # New panel C
-# r.bl = rcorr(t(str.morph.l.bl))$r; p.bl = rcorr(t(str.morph.l.bl))$P
-# r.age = rcorr(t(str.morph.l.sl.t))$r; p.age = rcorr(t(str.morph.l.sl.t))$P
-# pspin.age = pspin.bl = array(NA,dim=c(nmorph,nmorph))
-# for (i in 1:(nmorph-1)) {
-#   for(j in (i+1):nmorph){
-#     pspin.age[i,j] = perm.sphere.p(str.morph.l.sl.t[i,],str.morph.l.sl.t[j,],perm.id,corr.type = 'spearman')
-#     pspin.bl[i,j] = perm.sphere.p(str.morph.l.bl[i,],str.morph.l.bl[j,],perm.id,corr.type = 'spearman')
-#   }
-# }
-# plotmat.pspin = array(NA,dim=c(nmorph,nmorph)); colnames(plotmat.pspin) =sm; rownames(plotmat.pspin) =sm
-# plotmat.pspin[upper.tri(plotmat.pspin)] = pspin.bl[upper.tri(pspin.bl)]; plotmat.pspin[lower.tri(plotmat.pspin)] = t(pspin.age[lower.tri(pspin.age)])
-# 
-# plotmat.r = array(NA,dim=c(nmorph,nmorph)); colnames(plotmat.r) =sm; rownames(plotmat.r) =sm
-# plotmat.r[upper.tri(plotmat.r)] = r.bl[upper.tri(r.bl)]; plotmat.r[lower.tri(plotmat.r)] = t(r.age[lower.tri(r.age)])
-# 
-# plotmat.p = array(NA,dim=c(nmorph,nmorph)); colnames(plotmat.p) =sm; rownames(plotmat.p) =sm
-# plotmat.p[upper.tri(plotmat.p)] = p.bl[upper.tri(p.bl)]; plotmat.p[lower.tri(plotmat.p)] = t(p.age[lower.tri(p.age)])
-# 
-# pspinmelt=melt(plotmat.pspin); colnames(pspinmelt)[3]='pspin'
-# pmelt=melt(plotmat.p); colnames(pmelt)[3]='p'
-# rmelt=melt(plotmat.r); colnames(rmelt)[3]='r'
-# 
-# plotmat=rmelt %>% left_join(pspinmelt) %>% left_join(pmelt)
-# 
-# panel.morphcor = ggplot(plotmat[order(plotmat$Var1),],aes(x=Var1, y=Var2, fill=r))+
-#   geom_tile()+
-#   geom_text(aes(x = Var1, y = Var2, label = ifelse(pspin<0.05,'**','')), color = "black",
-#             fontface = "bold", size = 5)+
-#   ylab('')+xlab('')+
-#   scale_fill_gradient2(low = "darkblue", high = "darkred", mid = "white", 
-#                        midpoint = 0, limit = c(-0.7,0.7), space = "Lab", 
-#                        name="Pearson\nCorrelation", oob=squish, na.value = 'transparent')+
-#   guides(fill = guide_colourbar(title.position="top", title.hjust = 0.5,title="Correlation"))+
-#   theme_minimal(base_family = "Gill Sans")+
-#   theme(legend.position = 'bottom')+
-#   ylab('Baseline')+xlab('Rate of Change')+
-#   geom_vline(xintercept = 3.5)+geom_hline(yintercept = 3.5)#+
-
-# panel.globaldev = globeff%>%ggplot(aes(x=age, y=value, color=sex))+facet_wrap(measure~.,scales="free")+
-#   geom_point(alpha=0.3)+geom_smooth(method='lm')+ylab('')+theme_minimal(base_family = "Gill Sans")+
-#   theme(legend.position = 'bottom')+labs(color='')+scale_color_manual(values=c(colors.morph[7],colors.morph[1]))
-
-#ggarrange(panel.globaldev,panel.morphroi,panel.morphcor,ncol=3)
-#ggarrange(panel.globaldev, ggarrange(panel.morphroi,panel.morphcor, ncol=1),ncol=2, widths = c(2,1))
-
-# # 
-# SM.mu.BL = (apply(SM[,,which(MRI_table$session=='ses-baseline')], 1,function(x) rowMeans(x,na.rm=T)))
-# write.csv(SM.mu.BL,file=paste0(outpath,'SM.mu.BL.csv'), row.names = F)
 
 
 
