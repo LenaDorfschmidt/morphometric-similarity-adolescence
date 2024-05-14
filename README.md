@@ -13,8 +13,8 @@ To run all analyses in this publication, you will additionally need to download 
 # How to Run
 To run this code, download the required data. Most of the scripts read in ouputs from other scripts, so the order in which you run them is essential.
 
-1. Download data and place it into a folder `data/`.
-2. Generate main results using `scripts/01.morphometric.development.R`
+1. Download data from Zenodo and place it into a folder `data/`.
+2. Generate main results using `scripts/01.morphometric.development.R`. This is the key script, generating all main results. 
 3. Estimate within-sample replication using `scripts/02.within.sample.replication.R`. This takes *a while*. 
 4. Estimate structure-function coupling using `scripts/03.structure.function.coupling.R`
 5. Estimate functional network metrics using `scripts/04.functional.network.metrics.R`. This takes *a long time*.
