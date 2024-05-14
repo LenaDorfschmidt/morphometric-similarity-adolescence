@@ -1,16 +1,29 @@
 #### Load required packages
+library(nlme)         # linar mixed effects models
+library(ggplot2)      # plotting
+library(ggseg)        # brain surface plotting
+library(ggsegGlasser) # brain surface plotting
+library(paletteer)    # color scales
+library(tidyr)        # data wrangling
+library(scales)       # squish function
+library(ggpubr)       # arrange plots
+library(kableExtra)   # data wrangling
+
 
 #### Load dependencies
-
+source('scripts/external/rotate_parcellation-master/R/perm.sphere.p.R')   # Spin-test p-value estimation
 
 #### Load data
 load(paste0('data/for.further.analyses.RData'))
+load('data/perm.id.fc.RData')
 
 #### Other setup
 colors.coupling.bl = paletteer_c("scico::cork",n=100)
 colors.coupling.age = paletteer_d('Redmonder::dPBIRdBu')
+colors.morph = paletteer_d('rcartocolor::Tropic') 
+colors.msn.str = paletteer_d('Redmonder::dPBIRdGy')
 
-
+printout.stats=list()
 ######################################################
 #           STRUCTURE-FUNCTION-COUPLING
 ######################################################
@@ -18,19 +31,22 @@ colors.coupling.age = paletteer_d('Redmonder::dPBIRdBu')
 # Global structure=function coupling
 triup = upper.tri(matrix(nrow=nroi,ncol=nroi))
 fc=FC[-del.roi,-del.roi,]
-fc.edge = err = phenomat = array(NA, dim=nsub) 
+fc.edge = fc.roi= err = array(NA, dim=nsub) 
 for (s in 1:nsub) {
   tryCatch({
     fc.edge[s] = cor.test(MSN[,,s][triup],fc[,,s][triup],na.action=na.rm(),method='spearman')$estimate
+    fc.roi[s] = cor.test(rowMeans(MSN[,,s], na.rm=T),rowMeans(fc[,,s],na.rm=T),na.action=na.rm(),method = 'spearman')$estimate
   },
   error=function(e) {
     err[s] = TRUE
   })
 }
 
+df.str.fc = data.frame(age=MRI_table$age,id = MRI_table$id, sex = MRI_table$sex, center = MRI_table$site, 
+                       fcstr=fc.roi, fcedge=fc.edge)
+
 lm.edge=lme(fcedge~age+sex+center, random=~1|id, data=df.str.fc, na.action=na.exclude)
-summary(lme(fcstr~age+sex+center, random=~1|id, data=df.str.fc, na.action=na.exclude))$tTable
-printout.stats[[9]] = paste0('Effect of age on global structure-function coupling - t = ',summary(lm.edge)$tTable[2,4],'; t = ',summary(lm.edge)$tTable[2,4])
+printout.stats[[1]] = paste0('Effect of age on global structure-function coupling - t = ',summary(lm.edge)$tTable[2,4],'; p = ',summary(lm.edge)$tTable[2,5])
 
 # Fig. 4, Panel C
 struc.fc.age=ggplot(df.str.fc,aes(x=age, y=fcstr, color=sex))+
@@ -42,16 +58,16 @@ struc.fc.age=ggplot(df.str.fc,aes(x=age, y=fcstr, color=sex))+
   labs(color='')+
   theme(legend.position = 'bottom')
 
-# Edgewise FC
-str.fc.sim = str.fc.sim.r2=  matrix(NA,nrow=dim(fc)[1], ncol=nsub)
+# Estimate regional coupling strength for each scan
+str.fc.sim =  matrix(NA,nrow=dim(fc)[1], ncol=nsub)
 for (s in 1:nsub) {
+  print(s)
   for (r in 1:dim(fc)[1]) {
-    tmp=try({cor.test(MSN[r,-r,s],fc[r,-r,s], method='spearman', na.action=na.rm())$estimate})
-    if(class(tmp)!="try-error"){
-      str.fc.sim[r,s] = tmp
-    } else{
+    tryCatch({
+      str.fc.sim[r,s] = cor.test(MSN[r, -r, s], fc[r, -r, s], method = 'spearman', na.action = na.rm())$estimate
+    }, error = function(e) {
       str.fc.sim[r,s] = NA
-    }
+    })
   }
 }
 
@@ -64,7 +80,7 @@ for (r in 1:dim(fc)[1]) {
     p.fc.str[r]=summary(lm)$tTable[2,5]
     bl.fc.str[r]=lm$coefficients$fixed[1] + lm$coefficients$fixed[2]*14 + 1/2 * lm$coefficients$fixed[3] + lm$coefficients$fixed[4]*(1/3) + lm$coefficients$fixed[5]*(1/3)
     sl.fc.str[r]=lm$coefficients$fixed[2]
-  })
+  },silent = T)
 }
 
 df.fc.struct.bl.delta = data.frame(bl=bl.fc.str,
@@ -77,14 +93,14 @@ df.fc.struct.bl.delta = data.frame(bl=bl.fc.str,
                                    p.fdr=p.adjust(p.fc.str, method='fdr'),
                                    class = as.factor(mesulam))
 
-printout.stats[[10]] = paste0('N regions with age on local structure-function coupling p_FDR < 0.05 = ',sum(df.fc.struct.bl.delta$p.fdr<0.05, na.rm=TRUE))
-printout.stats[[11]] = paste0('Signifianct regions: ',paste(df.fc.struct.bl.delta$label[which(df.fc.struct.bl.delta$p.fdr<0.05)],collapse = '; '))
+printout.stats[[2]] = paste0('N regions with age on local structure-function coupling p_FDR < 0.05 = ',sum(df.fc.struct.bl.delta$p.fdr<0.05, na.rm=TRUE))
+printout.stats[[3]] = paste0('Signifianct regions: ',paste(df.fc.struct.bl.delta$label[which(df.fc.struct.bl.delta$p.fdr<0.05)],collapse = '; '))
 
 # Baseline structure-function coupling
 # Fig. 4 Panel D, left
 bl.coupling = df.fc.struct.bl.delta %>% 
   ggseg(atlas=glasser,mapping=aes(fill=bl), position = 'stacked')+
-  scale_fill_gradientn(colors=magma(20), oob=squish) +
+  scale_fill_gradientn(colors=paletteer_c('viridis::magma',100) , oob=squish) +
   theme_void(base_family = "Gill Sans")+
   ylab('')+xlab('')+
   labs(fill='Baseline Coupling')+
@@ -106,7 +122,7 @@ sl.coupling = df.fc.struct.bl.delta %>%
 # Fig. 4 Panel E
 p.spin.couplingDelta.vs.msnDelta = perm.sphere.p(sl.fc.str[!is.na(bl.fc.str)],str.l.sl.t[!is.na(bl.fc.str)],perm.id.fc,corr.type = 'spearman')
 r.couplingDelta.vs.msnDelta = cor.test(str.l.sl.t,sl.fc.str)$estimate
-printout.stats[[12]] = paste0('Correlation coupling rate of change with MSN rate of change: ',r.couplingDelta.vs.msnDelta,'; p-value = ',p.spin.couplingDelta.vs.msnDelta)
+printout.stats[[4]] = paste0('Correlation coupling rate of change with MSN rate of change: ',r.couplingDelta.vs.msnDelta,'; p-value = ',p.spin.couplingDelta.vs.msnDelta)
 msnDelta.vs.couplingDelta = df.fc.struct.bl.delta %>% ggplot(aes(x=msn,y=sl,color=msn))+
   geom_point()+geom_smooth(method='lm', color='black') +
   theme_minimal(base_family = "Gill Sans")+
@@ -138,7 +154,7 @@ ggsave(
             #  'D | Relative Change '),
             font.label = list(size = 12, family="Gill Sans"))+
     theme(plot.margin = margin(0.5,0,0,0, "cm")),
-  filename = paste0(outpath.main,'Fig4.png'),width=8, height=3, bg='white')
+  filename = paste0(outpath.main,'coupling.all.png'),width=8, height=3, bg='white')
 
 
 # Structure-function coupling at baseline by Mesulam zone 
@@ -149,7 +165,7 @@ bl.coupl.mesulam = subset(df.fc.struct.bl.delta, class != 'cortical_wall' & clas
   ggplot(aes(x=class, y=bl,fill=mean_t)) + 
   geom_violin(scale='width',color="white") +
   geom_boxplot(width=0.2,fill="white")+
-  scale_fill_gradientn(colours=magma(20), limits = c(-0.1, 0.3), oob=squish) +
+  scale_fill_gradientn(colours=paletteer_c('viridis::magma',100), limits = c(-0.1, 0.3), oob=squish) +
   xlab('')+
   geom_hline(yintercept = 0,linetype='dashed',size=0.5)+
   theme_minimal(base_family = "Gill Sans")+
@@ -185,7 +201,7 @@ ggsave(
                        'B | Rate of change in coupling'),
             font.label = list(size = 12, family="Gill Sans"))+
     theme(plot.margin = margin(0.5,0,0,0, "cm")),
-  filename = paste0(outpath.SI,'coupl.mesulam.png'),width=5, height=5, bg='white')
+  filename = paste0(outpath.SI,'coupling.mesulam.png'),width=5, height=5, bg='white')
 
 # Between-zone differences in structure-function coupling
 comp.mean.bl.coupl = compare_means(bl~class,subset(df.fc.struct.bl.delta, class != 'cortical_wall' & class != 'no label'))[,c(1:5,7)]
@@ -202,10 +218,6 @@ latex.out.comp.mean.coupl = rbind(comp.mean.bl.coupl,comp.mean.sl.coupl) %>% kbl
 ) %>% collapse_rows(columns = 1, latex_hline = "none")
 
 print(latex.out.comp.mean.coupl, file = paste0(latex.tables,'tab.coupl.mesulam.tex'))
-
-# Spin tests permuations have been pre-calculated
-load('data/perm.id.fc.RData')
-
 
 # Thresholded change in structure-function coupling
 # SI Fig. 20 Panel A
