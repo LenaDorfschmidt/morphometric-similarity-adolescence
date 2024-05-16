@@ -18,7 +18,6 @@ library(extrafont)    # to use Gill Sans font, first time use: library(extrafont
 library(matrixStats)  # matrix manipulation
 library(Hmisc)        # compute correlation on matrix rows 
 library(scales)       # squish function
-library(igraph)       # network abalysis
 
 library(xtable)       # saving tables for latex doc
 
