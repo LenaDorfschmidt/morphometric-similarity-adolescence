@@ -1,5 +1,7 @@
 # Human adolescent brain network development is different for paralimbic versus neocortical zones
 
+[![DOI](https://zenodo.org/badge/800231232.svg)](https://zenodo.org/doi/10.5281/zenodo.12735272)
+
 This repository contains the code for the main analyses of the manuscript "Human adolescent brain network development is different for paralimbic versus neocortical zones" by Lena Dorfschmidt, František Váša, Simon R. White, Rafael Romero-García, Manfred G. Kitzbichler, Aaron Alexander-Bloch, Matthew Cieslak, Kahini Mehta, Theodore D. Satterhwaite , the NSPN consortium, Richard A. Bethlehem, Jakob Seidlitz, Petra E. Vértes, Edward T. Bullmore. 
 
 For details behind these analyses refer to the manuscript: https://doi.org/10.1101/2023.09.17.558126
